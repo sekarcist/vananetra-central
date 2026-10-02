@@ -162,6 +162,35 @@ int calculateLiFePO4SoC(float v) {
   return 0;
 }
 
+// 1S Li-ion Onboard Battery Monitor (3.7V 1500mAh)
+int calculate1SLiIonSoC(float v) {
+  if (v < 2.5f) return 0; // Not connected
+  if (v >= 4.15f) return 100;
+  if (v >= 4.05f) return 90;
+  if (v >= 3.95f) return 80;
+  if (v >= 3.85f) return 65;
+  if (v >= 3.75f) return 50;
+  if (v >= 3.65f) return 30;
+  if (v >= 3.50f) return 15;
+  if (v >= 3.30f) return 5;
+  return 0;
+}
+
+float readBackupBatteryVoltage() {
+  analogSetPinAttenuation(35, ADC_11db);
+  int raw = analogRead(35);
+  // Fallback to GPIO 34 if 35 reads 0
+  if (raw < 50) {
+    analogSetPinAttenuation(34, ADC_11db);
+    int raw34 = analogRead(34);
+    if (raw34 > raw) raw = raw34;
+  }
+  if (raw < 50) return 0.0f;
+  // 12-bit ADC (0-4095), 3.3V, 2:1 onboard resistor divider, 1.05 calibration factor
+  float v = (raw / 4095.0f) * 3.3f * 2.0f * 1.05f;
+  return v;
+}
+
 void setupDPS310HighSpeed() {
   dps310.setMode(DPS310_IDLE);
   delay(10);
@@ -286,6 +315,10 @@ void loop() {
 
     int soc = calculateLiFePO4SoC(b_v);
 
+    // Read 1S Li-ion Backup Battery (3.7V 1500mAh)
+    float backup_v = readBackupBatteryVoltage();
+    int backup_soc = calculate1SLiIonSoC(backup_v);
+
     // Integrate Total Energy (Watt-hours)
     total_solar_wh += (s_p * (elapsedSec / 3600.0f));
     total_load_wh  += (l_p * (elapsedSec / 3600.0f));
@@ -308,6 +341,8 @@ void loop() {
     cachedPowerDoc["solar_charging"] = is_charging;
     cachedPowerDoc["battery_v"]      = round(b_v * 100.0f) / 100.0f;
     cachedPowerDoc["battery_soc"]    = soc;
+    cachedPowerDoc["backup_v"]       = round(backup_v * 100.0f) / 100.0f;
+    cachedPowerDoc["backup_soc"]     = backup_soc;
     cachedPowerDoc["load_i"]         = round(l_i * 10.0f) / 10.0f;
     cachedPowerDoc["load_p"]         = round(l_p * 100.0f) / 100.0f;
     cachedPowerDoc["total_load_wh"]  = round(total_load_wh * 100.0f) / 100.0f;
@@ -315,8 +350,8 @@ void loop() {
     cachedPowerDoc["rumble_alert"]   = rumbleTriggered;
 
     // Print to Local Serial
-    Serial.printf("[1s Power] Bat: %5.2fV (%3d%%) | Load: %5.1fmA | Fan: %4.2fW (Tot: %.2fWh) | Sol: %4.2fW (Tot: %.2fWh)\n",
-                  b_v, soc, l_i, l_p, total_load_wh, s_p, total_solar_wh);
+    Serial.printf("[1s Power] Bat: %5.2fV (%3d%%) | Backup: %4.2fV (%3d%%) | Load: %5.1fmA | Fan: %4.2fW | Sol: %4.2fW\n",
+                  b_v, soc, backup_v, backup_soc, l_i, l_p, s_p);
 
     // Publish to MQTT
     if (mqttClient.connected()) {

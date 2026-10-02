@@ -292,10 +292,22 @@ function updatePowerUI(data) {
         if (solWhEl) solWhEl.innerText = `${data.total_solar_wh.toFixed(2)} Wh`;
     }
 
-    // Battery
+    // Battery (Primary 4S LiFePO4 Station)
     document.getElementById("batVolts").innerText = data.battery_v.toFixed(2);
     document.getElementById("batSoc").innerText = `${data.battery_soc}%`;
     document.getElementById("batProgress").style.width = `${data.battery_soc}%`;
+
+    // Backup Battery (1S Li-ion 1500mAh)
+    const backupEl = document.getElementById("backupBatVal");
+    if (backupEl) {
+        if (data.backup_v !== undefined && data.backup_v >= 2.5) {
+            backupEl.innerText = `${data.backup_v.toFixed(2)} V (${data.backup_soc}%)`;
+            backupEl.style.color = data.backup_soc > 20 ? "#38BDF8" : "#F87171";
+        } else {
+            backupEl.innerText = "Not Connected";
+            backupEl.style.color = "#94A3B8";
+        }
+    }
 
     // Load
     document.getElementById("loadWatts").innerText = data.load_p.toFixed(2);
