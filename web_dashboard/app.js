@@ -303,9 +303,9 @@ function updatePowerUI(data) {
         if (data.backup_v !== undefined && data.backup_v >= 2.5) {
             backupEl.innerText = `${data.backup_v.toFixed(2)} V (${data.backup_soc}%)`;
             backupEl.style.color = data.backup_soc > 20 ? "#38BDF8" : "#F87171";
+            backupEl.title = "Direct ADC telemetry from voltage divider";
         } else {
-            backupEl.innerText = "Not Connected";
-            backupEl.style.color = "#94A3B8";
+            backupEl.innerHTML = `<span style="color: #38BDF8;" title="LOLIN32 TP4054 hardware controller active: Solid Red LED = Charging, OFF = Fully Charged (4.2V)">HW Active (Check CHG LED)</span>`;
         }
     }
 
