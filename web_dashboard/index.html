@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vananetra Central | Solar, Battery & Infrasonic Sentry Operations</title>
+    <meta name="description" content="Vananetra Central (VNC) - Real-time bimodal elephant corridor sentry, LiFePO4 battery telemetry, solar generation tracking, and infrasonic rumble detection station.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ============================================== -->
+    <!-- VIEW 1: SECURE PIN LOCK SCREEN                 -->
+    <!-- ============================================== -->
+    <div id="lockScreen" class="lock-screen active">
+        <div class="lock-container">
+            <div class="lock-header">
+                <div class="lock-icon-orb">
+                    <span class="icon">🐘</span>
+                </div>
+                <h2>VANANETRA CENTRAL</h2>
+                <p class="lock-sub">Wildlife Corridor Sentinel Station &bull; vnc.inayat.net</p>
+            </div>
+
+            <div class="pin-display">
+                <div class="pin-dot" id="dot1"></div>
+                <div class="pin-dot" id="dot2"></div>
+                <div class="pin-dot" id="dot3"></div>
+                <div class="pin-dot" id="dot4"></div>
+            </div>
+
+            <p id="lockErrorMsg" class="lock-error-msg">Enter Security PIN (Default: 2026)</p>
+
+            <div class="keypad">
+                <button class="key-btn" onclick="pressKey('1')">1</button>
+                <button class="key-btn" onclick="pressKey('2')">2</button>
+                <button class="key-btn" onclick="pressKey('3')">3</button>
+                <button class="key-btn" onclick="pressKey('4')">4</button>
+                <button class="key-btn" onclick="pressKey('5')">5</button>
+                <button class="key-btn" onclick="pressKey('6')">6</button>
+                <button class="key-btn" onclick="pressKey('7')">7</button>
+                <button class="key-btn" onclick="pressKey('8')">8</button>
+                <button class="key-btn" onclick="pressKey('9')">9</button>
+                <button class="key-btn action-key" onclick="clearPin()">C</button>
+                <button class="key-btn" onclick="pressKey('0')">0</button>
+                <button class="key-btn action-key" onclick="quickDemoUnlock()">DEMO</button>
+            </div>
+
+            <div class="lock-footer">
+                <span>🔒 Department of Forest Conservation &bull; Secure Node Access</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- VIEW 2: EXECUTIVE SENTRY DASHBOARD             -->
+    <!-- ============================================== -->
+    <div id="mainDashboard" class="main-dashboard hidden">
+        <!-- Top Navigation Bar -->
+        <header class="navbar">
+            <div class="nav-brand">
+                <div class="logo-orb">🐘</div>
+                <div>
+                    <div class="brand-title">VANANETRA CENTRAL</div>
+                    <div class="brand-sub">Corridor Sentry Node VN-01 &bull; <code>vnc.inayat.net</code></div>
+                </div>
+            </div>
+
+            <div class="nav-controls">
+                <div class="status-pill status-live" id="brokerStatusPill">
+                    <span class="pulse-dot"></span>
+                    <span id="brokerStatusText">BROKER: CONNECTED</span>
+                </div>
+
+                <div class="status-pill">
+                    <span class="icon">📶</span>
+                    <span id="wifiRssiVal">Paari (-52 dBm)</span>
+                </div>
+
+                <div class="status-pill">
+                    <span class="icon">⏱️</span>
+                    <span id="uptimeVal">Uptime: 0m 42s</span>
+                </div>
+
+                <button class="btn-lock" onclick="lockSystem()" title="Lock Session">
+                    <span>🔒 Lock</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Container -->
+        <main class="dashboard-body">
+
+            <!-- ALARM TOAST BANNER (Rumble Detection Trigger) -->
+            <div class="alert-banner hidden" id="rumbleAlertBanner">
+                <div class="alert-content">
+                    <span class="alert-siren">🚨</span>
+                    <div>
+                        <div class="alert-title">INFRASONIC ELEPHANT RUMBLE CONFIRMED (14–35 Hz)</div>
+                        <div class="alert-desc" id="alertDesc">
+                            DPS310 pressure variance exceeded baseline threshold (>12 Pa). Pi 5 YOLO cameras triggered.
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-dismiss-alert" onclick="dismissRumbleAlert()">Acknowledge</button>
+            </div>
+
+            <!-- TOP KPI METRIC CARDS (4 Cards Grid) -->
+            <section class="kpi-grid">
+                
+                <!-- KPI 1: Solar Generation -->
+                <div class="card kpi-card solar-glow">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="kpi-icon solar-icon">☀️</span>
+                            <h3>SOLAR INPUT</h3>
+                        </div>
+                        <span class="badge badge-solar" id="solarBadge">STANDBY / DARK</span>
+                    </div>
+                    <div class="kpi-main-val">
+                        <span id="solarWatts">0.00</span> <span class="unit">W</span>
+                    </div>
+                    <div class="kpi-sub-metrics">
+                        <div class="sub-metric">
+                            <span class="sub-label">Panel Voltage</span>
+                            <span class="sub-val" id="solarVolts">0.00 V</span>
+                        </div>
+                        <div class="sub-metric">
+                            <span class="sub-label">Solar Current</span>
+                            <span class="sub-val" id="solarCurrent">0.0 mA</span>
+                        </div>
+                        <div class="sub-metric">
+                            <span class="sub-label">INA260 Address</span>
+                            <span class="sub-val font-mono">0x40 (OK)</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar progress-solar" id="solarProgress" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- KPI 2: LiFePO4 Battery Station -->
+                <div class="card kpi-card battery-glow">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="kpi-icon bat-icon">🔋</span>
+                            <h3>LiFePO4 BATTERY</h3>
+                        </div>
+                        <span class="badge badge-success" id="batStateBadge">OPTIMAL (100%)</span>
+                    </div>
+                    <div class="kpi-main-val">
+                        <span id="batVolts">13.92</span> <span class="unit">V</span>
+                    </div>
+                    <div class="kpi-sub-metrics">
+                        <div class="sub-metric">
+                            <span class="sub-label">State of Charge</span>
+                            <span class="sub-val" id="batSoc">100%</span>
+                        </div>
+                        <div class="sub-metric">
+                            <span class="sub-label">Chemistry</span>
+                            <span class="sub-val">4S LiFePO4</span>
+                        </div>
+                        <div class="sub-metric">
+                            <span class="sub-label">CM-D20 Match</span>
+                            <span class="sub-val font-mono">13.9 V (Exact)</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar progress-bat" id="batProgress" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <!-- KPI 3: System Load Demand -->
+                <div class="card kpi-card load-glow">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="kpi-icon load-icon">⚡</span>
+                            <h3>LOAD CONSUMPTION</h3>
+                        </div>
+                        <span class="badge badge-load" id="loadBadge">STONE-PRO DC FAN</span>
+                    </div>
+                    <div class="kpi-main-val">
+                        <span id="loadWatts">1.91</span> <span class="unit">W</span>
+                    </div>
+                    <div class="kpi-sub-metrics">
+                        <div class="sub-metric">
+                            <span class="sub-label">Draw Current</span>
+                            <span class="sub-val" id="loadCurrent">136.9 mA</span>
+                        </div>
+                        <div class="sub-metric">
+                            <span class="sub-label">Load Voltage</span>
+                            <span class="sub-val" id="loadVolts">13.92 V</span>
+                        </div>
+                        <div class="sub-metric">
+                            <span class="sub-label">INA260 Address</span>
+                            <span class="sub-val font-mono">0x44 (OK)</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar progress-load" id="loadProgress" style="width: 25%;"></div>
+                    </div>
+                </div>
+
+                <!-- KPI 4: Infrasound Rumble Sentinel -->
+                <div class="card kpi-card infrasound-glow">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="kpi-icon rumble-icon">🐘</span>
+                            <h3>RUMBLE SENTINEL</h3>
+                        </div>
+                        <span class="badge badge-rumble" id="rumbleBadge">LISTENING (65 Hz)</span>
+                    </div>
+                    <div class="kpi-main-val">
+                        <span id="rumbleRms">2.45</span> <span class="unit">Pa</span>
+                    </div>
+                    <div class="kpi-sub-metrics">
+                        <div class="sub-metric">
+                            <span class="sub-label">Sampling Cadence</span>
+                            <span class="sub-val">15.4 ms (64.9 Hz)</span>
+                        </div>
+                        <div class="sub-metric">
+                            <span class="sub-label">Target Band</span>
+                            <span class="sub-val font-mono">14 – 35 Hz</span>
+                        </div>
+                        <div class="sub-metric">
+                            <span class="sub-label">Ambient Pressure</span>
+                            <span class="sub-val" id="baroPres">996.75 hPa</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar progress-rumble" id="rumbleProgress" style="width: 20%;"></div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- CHARTS & VISUALIZERS SECTION (2 Columns) -->
+            <section class="charts-grid">
+                
+                <!-- Chart 1: Infrasonic Pressure Waveform Oscillogram (64 Hz) -->
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">INFRASONIC PRESSURE OSCILLOGRAM (DPS310 &bull; 64.9 Hz)</div>
+                            <div class="card-subtitle">Real-time micro-barometric acoustic fluctuations (Pa) across elephant rumble frequency</div>
+                        </div>
+                        <div class="chart-controls">
+                            <button class="btn-ctrl active" id="btnFilterRumble" onclick="toggleRumbleFilter()">14–35Hz Bandpass</button>
+                            <button class="btn-ctrl" onclick="simulateRumbleEvent()">Simulate Rumble</button>
+                        </div>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="waveformChart"></canvas>
+                    </div>
+                    <div class="chart-footer">
+                        <div class="footer-legend">
+                            <span class="legend-dot" style="background:#06B6D4;"></span> Raw Pressure Waveform (hPa)
+                            <span class="legend-dot" style="background:#F43F5E; margin-left: 16px;"></span> Rumble Trigger Threshold (&plusmn;8 Pa)
+                        </div>
+                        <div class="footer-stat">Samples Buffer: <strong>128 pts</strong> &bull; Latency: <strong>~15 ms</strong></div>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Solar Generation vs Load Demand (1 Hz Time-Series) -->
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">POWER FLOW DYNAMICS (INA260 &bull; 1 Hz)</div>
+                            <div class="card-subtitle">Real-time solar wattage input vs stone-pro fan load consumption vs LiFePO4 battery level</div>
+                        </div>
+                        <div class="chart-controls">
+                            <button class="btn-ctrl active">Live 60s Stream</button>
+                            <button class="btn-ctrl" onclick="exportDataCSV()">Export CSV</button>
+                        </div>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="powerChart"></canvas>
+                    </div>
+                    <div class="chart-footer">
+                        <div class="footer-legend">
+                            <span class="legend-dot" style="background:#F59E0B;"></span> Solar Gen (W)
+                            <span class="legend-dot" style="background:#10B981; margin-left: 16px;"></span> Load Draw (W)
+                            <span class="legend-dot" style="background:#818CF8; margin-left: 16px;"></span> Battery (V)
+                        </div>
+                        <div class="footer-stat">Net Balance: <strong id="netPowerStat">-1.91 W (Discharging)</strong></div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- EVENT AUDIT LOGS & FLEET INFORMATION -->
+            <section class="card logs-card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">SENTRY SENSOR HEALTH & FLEET LOGS</div>
+                        <div class="card-subtitle">Live events emitted by node VN-01 via broker <code>mqtt.ezhililabs.com:1883</code></div>
+                    </div>
+                    <button class="btn-ctrl" onclick="clearLogs()">Clear Console</button>
+                </div>
+                <div class="logs-console" id="logConsole">
+                    <div class="log-entry">[SYSTEM] Vananetra Central initialized. Connecting to MQTT broker...</div>
+                    <div class="log-entry log-success">[HARDWARE] INA260 #1 (0x40 - Solar) verified healthy.</div>
+                    <div class="log-entry log-success">[HARDWARE] INA260 #2 (0x44 - Load) verified healthy. Battery: 13.92V.</div>
+                    <div class="log-entry log-success">[HARDWARE] Smartelex DPS310 (0x77) streaming at 64.9 Hz continuous cadence.</div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <p>Vananetra Elephant Corridor Conservation &bull; National Institute of Technology &bull; Production Host: <code>vnc.inayat.net</code></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

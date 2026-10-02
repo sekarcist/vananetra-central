@@ -1,0 +1,10 @@
+# OS & Temp
+.DS_Store
+Thumbs.db
+*.tmp
+__pycache__/
+
+# Local tests
+test_gh.py
+test_reset.py
+read_serial.py
