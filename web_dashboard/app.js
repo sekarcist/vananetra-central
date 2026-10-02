@@ -7,7 +7,10 @@
 const CORRECT_PIN = "2026";
 let currentPin = "";
 
-const MQTT_WS_BROKER = "wss://broker.hivemq.com:8884/mqtt";
+const isHttps = window.location.protocol === "https:";
+const MQTT_WS_BROKER = isHttps 
+    ? "wss://broker.hivemq.com:8884/mqtt" 
+    : "ws://broker.hivemq.com:8000/mqtt";
 const TOPIC_POWER = "vananetra/VN-01/power";
 const TOPIC_RUMBLES = "vananetra/VN-01/rumbles";
 const TOPIC_ALERTS = "vananetra/VN-01/alerts";
@@ -222,20 +225,21 @@ function initCharts() {
 
 // --- 4. MQTT REAL-TIME BROKER CLIENT ---
 function initMQTT() {
-    logMessage("Connecting to HiveMQ WSS Bridge (broker.hivemq.com:8884)...");
+    logMessage(`Connecting to HiveMQ Bridge (${MQTT_WS_BROKER})...`);
 
     const clientId = "VNC-Web-" + Math.random().toString(16).substr(2, 8);
     try {
         mqttClient = mqtt.connect(MQTT_WS_BROKER, {
             clientId: clientId,
             clean: true,
-            reconnectPeriod: 3000
+            keepalive: 60,
+            reconnectPeriod: 2500
         });
 
         mqttClient.on("connect", () => {
             logMessage("✅ MQTT Broker Connected! Subscribed to vananetra/# topics.", "log-success");
             document.getElementById("brokerStatusPill").classList.add("status-live");
-            document.getElementById("brokerStatusText").innerText = "BROKER: LIVE (WSS)";
+            document.getElementById("brokerStatusText").innerText = "BROKER: LIVE (SYNCED)";
 
             mqttClient.subscribe("vananetra/VN-01/#");
         });
@@ -252,14 +256,16 @@ function initMQTT() {
         mqttClient.on("error", (err) => {
             console.warn("MQTT error:", err);
             document.getElementById("brokerStatusPill").classList.remove("status-live");
-            document.getElementById("brokerStatusText").innerText = "BROKER: OFFLINE";
+            document.getElementById("brokerStatusText").innerText = "BROKER: RECONNECTING...";
+        });
+
+        mqttClient.on("close", () => {
+            document.getElementById("brokerStatusPill").classList.remove("status-live");
+            document.getElementById("brokerStatusText").innerText = "BROKER: RECONNECTING...";
         });
     } catch (e) {
-        logMessage("WebSocket connection failed, running demo telemetry fallback.", "log-alert");
+        logMessage("WebSocket connection failed: " + e.message, "log-alert");
     }
-
-    // Launch fallback live simulation loop to ensure the UI is lively
-    startDemoTelemetryStream();
 }
 
 function handleIncomingTelemetry(topic, data) {
@@ -279,6 +285,12 @@ function updatePowerUI(data) {
     document.getElementById("solarProgress").style.width = `${Math.min(100, (data.solar_p / 50) * 100)}%`;
     document.getElementById("solarBadge").innerText = data.solar_charging ? "CHARGING" : "STANDBY / DARK";
 
+    // Lifetime Total Solar Generated (Wh)
+    if (data.total_solar_wh !== undefined) {
+        const solWhEl = document.getElementById("totalSolarWh");
+        if (solWhEl) solWhEl.innerText = `${data.total_solar_wh.toFixed(2)} Wh`;
+    }
+
     // Battery
     document.getElementById("batVolts").innerText = data.battery_v.toFixed(2);
     document.getElementById("batSoc").innerText = `${data.battery_soc}%`;
@@ -290,11 +302,25 @@ function updatePowerUI(data) {
     document.getElementById("loadCurrent").innerText = `${data.load_i.toFixed(1)} mA`;
     document.getElementById("loadProgress").style.width = `${Math.min(100, (data.load_p / 10) * 100)}%`;
 
+    // Lifetime Total Load Consumed (Wh)
+    if (data.total_load_wh !== undefined) {
+        const loadWhEl = document.getElementById("totalLoadWh");
+        if (loadWhEl) loadWhEl.innerText = `${data.total_load_wh.toFixed(2)} Wh`;
+    }
+
+    // Sentry Hardware Uptime
+    if (data.uptime_s !== undefined) {
+        hardwareUptimeReceived = true;
+        const mins = Math.floor(data.uptime_s / 60);
+        const secs = data.uptime_s % 60;
+        document.getElementById("uptimeVal").innerText = `Sentry Uptime: ${mins}m ${secs}s`;
+    }
+
     // Net balance
     const net = data.solar_p - data.load_p;
     document.getElementById("netPowerStat").innerText = `${net >= 0 ? "+" : ""}${net.toFixed(2)} W (${net >= 0 ? "Charging" : "Discharging"})`;
 
-    // WiFi
+    // WiFi RSSI
     if (data.wifi_rssi) {
         document.getElementById("wifiRssiVal").innerText = `Paari (${data.wifi_rssi} dBm)`;
     }
@@ -451,12 +477,17 @@ function clearLogs() {
     document.getElementById("logConsole").innerHTML = "";
 }
 
+let hardwareUptimeReceived = false;
+
 function startUptimeCounter() {
     let seconds = 0;
     setInterval(() => {
-        seconds++;
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        document.getElementById("uptimeVal").innerText = `Uptime: ${mins}m ${secs}s`;
+        if (!hardwareUptimeReceived) {
+            seconds++;
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            const el = document.getElementById("uptimeVal");
+            if (el) el.innerText = `Connecting: ${mins}m ${secs}s`;
+        }
     }, 1000);
 }

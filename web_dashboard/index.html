@@ -135,8 +135,8 @@
                             <span class="sub-val" id="solarCurrent">0.0 mA</span>
                         </div>
                         <div class="sub-metric">
-                            <span class="sub-label">INA260 Address</span>
-                            <span class="sub-val font-mono">0x40 (OK)</span>
+                            <span class="sub-label">Total Generated</span>
+                            <span class="sub-val font-mono" id="totalSolarWh" style="color: #F59E0B; font-weight: 700;">0.00 Wh</span>
                         </div>
                     </div>
                     <div class="progress-bar-container">
@@ -154,7 +154,7 @@
                         <span class="badge badge-success" id="batStateBadge">OPTIMAL (100%)</span>
                     </div>
                     <div class="kpi-main-val">
-                        <span id="batVolts">13.92</span> <span class="unit">V</span>
+                        <span id="batVolts">13.87</span> <span class="unit">V</span>
                     </div>
                     <div class="kpi-sub-metrics">
                         <div class="sub-metric">
@@ -185,24 +185,24 @@
                         <span class="badge badge-load" id="loadBadge">STONE-PRO DC FAN</span>
                     </div>
                     <div class="kpi-main-val">
-                        <span id="loadWatts">1.91</span> <span class="unit">W</span>
+                        <span id="loadWatts">0.00</span> <span class="unit">W</span>
                     </div>
                     <div class="kpi-sub-metrics">
                         <div class="sub-metric">
                             <span class="sub-label">Draw Current</span>
-                            <span class="sub-val" id="loadCurrent">136.9 mA</span>
+                            <span class="sub-val" id="loadCurrent">0.0 mA</span>
                         </div>
                         <div class="sub-metric">
                             <span class="sub-label">Load Voltage</span>
-                            <span class="sub-val" id="loadVolts">13.92 V</span>
+                            <span class="sub-val" id="loadVolts">13.87 V</span>
                         </div>
                         <div class="sub-metric">
-                            <span class="sub-label">INA260 Address</span>
-                            <span class="sub-val font-mono">0x44 (OK)</span>
+                            <span class="sub-label">Total Consumed</span>
+                            <span class="sub-val font-mono" id="totalLoadWh" style="color: #EC4899; font-weight: 700;">0.00 Wh</span>
                         </div>
                     </div>
                     <div class="progress-bar-container">
-                        <div class="progress-bar progress-load" id="loadProgress" style="width: 25%;"></div>
+                        <div class="progress-bar progress-load" id="loadProgress" style="width: 0%;"></div>
                     </div>
                 </div>
 
