@@ -252,6 +252,7 @@
                         <div class="chart-controls">
                             <button class="btn-ctrl active" id="btnFilterRumble" onclick="toggleRumbleFilter()">14–35Hz Bandpass</button>
                             <button class="btn-ctrl" onclick="simulateRumbleEvent()">Simulate Rumble</button>
+                            <button class="btn-ctrl" onclick="exportRumbleCSV()" title="Download high-resolution 65Hz pressure data">Export Rumble CSV</button>
                         </div>
                     </div>
                     <div class="chart-body">
@@ -275,7 +276,7 @@
                         </div>
                         <div class="chart-controls">
                             <button class="btn-ctrl active">Live 60s Stream</button>
-                            <button class="btn-ctrl" onclick="exportDataCSV()">Export CSV</button>
+                            <button class="btn-ctrl" onclick="exportDataCSV()" title="Download 1Hz timestamped power telemetry">Export Power CSV</button>
                         </div>
                     </div>
                     <div class="chart-body">

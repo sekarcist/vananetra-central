@@ -21,6 +21,7 @@ let powerChart = null;
 
 let isBandpassActive = true;
 let recordedPowerHistory = [];
+let recordedRumbleHistory = [];
 let baselinePressure = 996.75;
 
 // --- 2. PIN LOCK LOGIC ---
@@ -347,10 +348,17 @@ function updatePowerUI(data) {
         ts: new Date().toISOString(),
         solar_w: data.solar_p,
         solar_v: data.solar_v,
+        solar_ma: data.solar_i,
         bat_v: data.battery_v,
+        bat_soc: data.battery_soc,
         load_w: data.load_p,
-        load_ma: data.load_i
+        load_ma: data.load_i,
+        total_solar_wh: data.total_solar_wh || 0,
+        total_load_wh: data.total_load_wh || 0
     });
+    if (recordedPowerHistory.length > 3600) {
+        recordedPowerHistory.shift();
+    }
 }
 
 function updateRumblesUI(data) {
@@ -377,6 +385,18 @@ function updateRumblesUI(data) {
             if (wave.length > 128) wave.shift();
         });
         waveformChart.update();
+    }
+
+    // Save rumble telemetry packet into history
+    recordedRumbleHistory.push({
+        ts: new Date().toISOString(),
+        rms_energy: data.rms_energy,
+        peak_pa: data.peak_pa,
+        rumble_detected: data.rumble_detected ? 1 : 0,
+        samples: data.samples || []
+    });
+    if (recordedRumbleHistory.length > 1000) {
+        recordedRumbleHistory.shift();
     }
 }
 
@@ -445,22 +465,48 @@ function toggleRumbleFilter() {
     }
 }
 
-// Export CSV
+// Export Power Telemetry CSV
 function exportDataCSV() {
     if (recordedPowerHistory.length === 0) {
         alert("No telemetry records in memory to export yet.");
         return;
     }
-    let csv = "timestamp,solar_w,solar_v,battery_v,load_w,load_ma\n";
+    let csv = "timestamp,solar_w,solar_v,solar_ma,battery_v,battery_soc,load_w,load_ma,total_solar_wh,total_load_wh\n";
     recordedPowerHistory.forEach(r => {
-        csv += `${r.ts},${r.solar_w},${r.solar_v},${r.bat_v},${r.load_w},${r.load_ma}\n`;
+        csv += `${r.ts},${r.solar_w},${r.solar_v},${r.solar_ma || 0},${r.bat_v},${r.bat_soc || 100},${r.load_w},${r.load_ma},${r.total_solar_wh || 0},${r.total_load_wh || 0}\n`;
     });
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `vananetra_telemetry_${Date.now()}.csv`;
+    a.download = `vananetra_power_${Date.now()}.csv`;
     a.click();
+    logMessage(`📥 Downloaded Power Telemetry CSV (${recordedPowerHistory.length} rows)`, "log-success");
+}
+
+// Export 65Hz Infrasonic Rumble CSV
+function exportRumbleCSV() {
+    if (recordedRumbleHistory.length === 0) {
+        alert("No infrasonic rumble records in memory to export yet.");
+        return;
+    }
+    let csv = "timestamp,batch_rms_pa,batch_peak_pa,rumble_flag,sample_idx,pressure_hpa\n";
+    let totalSamples = 0;
+    recordedRumbleHistory.forEach(r => {
+        if (r.samples && r.samples.length > 0) {
+            r.samples.forEach((s, idx) => {
+                csv += `${r.ts},${r.rms_energy},${r.peak_pa},${r.rumble_detected},${idx},${s}\n`;
+                totalSamples++;
+            });
+        }
+    });
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `vananetra_rumbles_65Hz_${Date.now()}.csv`;
+    a.click();
+    logMessage(`📥 Downloaded Infrasound CSV (${recordedRumbleHistory.length} batches, ${totalSamples} samples)`, "log-success");
 }
 
 function logMessage(msg, className = "") {
